@@ -1,0 +1,49 @@
+
+struct symbol
+{
+	symbol *prev, *next;
+	char *name;
+};
+
+def enqueue(symbol **queue, symbol *sym)
+{
+	symbol *s = *queue;
+	if(s == NULL)
+	{
+		*queue = sym;
+		sym->prev = NULL;
+		sym->next = NULL;
+		return;
+	}
+
+	while(s->next)
+		s = s->next;
+
+	s->next = sym;
+	sym->prev = s;
+	sym->next = NULL;
+}
+
+def print_list(symbol *list)
+{
+	while(list)
+	{
+		echo("=> ",list->name, "\n");
+		list = list->next;
+	}
+}
+symbol *list = NULL;
+def main()
+{	
+	symbol *sym1 = malloc(sizeof(symbol));
+	symbol *sym2 = malloc(sizeof(symbol));
+
+	sym1->name = malloc(20);
+	sym2->name = malloc(20);
+	strcpy(sym1->name, "first");
+	strcpy(sym2->name, "second");
+	enqueue(&list, sym1);
+	enqueue(&list, sym2);
+
+	print_list(list);
+}

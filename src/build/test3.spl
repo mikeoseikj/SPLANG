@@ -1,0 +1,21 @@
+
+
+def fib(int a, int b, int limit)
+{
+	if(a+b > limit)
+		return;
+	echo(", ", a+b);
+	fib(b, a+b, limit);
+	
+}
+
+
+def main()
+{
+	int limit;
+	echo("Enter limit for fibonacci sequence: ");
+	input(int_t, &limit);
+	echo("1, 1");
+	fib(1, 1, limit);
+	echo("\n");	
+}

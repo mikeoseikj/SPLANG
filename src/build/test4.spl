@@ -1,0 +1,16 @@
+def main()
+{
+	int val;
+	for(;;)
+	{
+		echo("====================================\n");
+		echo("Enter number: ");
+		input(int_t, &val);
+
+		echo("to hex => ", hex_t(val), "\n"); 
+		if(val % 2 == 0)
+			echo(val, " is an even number\n");
+		else
+			echo(val, " is an odd number\n");
+	}
+}

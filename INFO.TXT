@@ -1,0 +1,116 @@
+
+SPLANG is a simple compiled programming language which I wrote for experimentation and obviously for fun. The compiler for the language generate 32bit x86 assembly code that is later assembled with the netwide assembler(nasm) and the GNU linker(ld).
+
+A simple splang program
+--------------------------
+
+def main()
+{
+	echo("hello, world\n");
+}
+
+
+Check 'build' folder for more examples (test1.spl etc).
+
+============================================= [COMPILING SPLANG SOURCE CODE] ===========================================
+
+Prerequisites:
+
+Both compilation and the use of the SPLANG compiler requires linux
+=> gcc 
+=> ar
+
+Others:  mv, rm
+
+Note: The compilation script uses the -m32 flag compile the SPLANG compiler library, lib.c. So some libraries has to be installed when you are on a 64bit system.
+
+=>> change directory to the 'SPLANG/src' folder
+=>> Enter './compile' to compile the code
+=>> cd to the build folder
+=>> If compilation was successful, the SLANG compiler named 'splang' will be in the current directly.
+
+=========================================== [USING THE SPLANG COMPILER] ===================================================
+
+ usage: ./splang -o  <output file>  <input file>
+		./splang  <input file> : create an ELF executable with default name './a.out\'
+		
+ Other compiler options.
+		-no-opt 	disable optimization of the generated assembly code
+		-no-bin 	generate assembly code in 'code.s' file instead of an ELF executable
+
+
+==================================================== [LANGUAGE] =============================================================
+
+OPERATORS: +, -, *, /, %, ^, |, &, =, ==, !=, >, < , <=, >=, ==, ||, &&
+
+KEYWORDS: char, bool, int, float, struct, def, if, else, for, do, while, break, continue, 
+		  return, echo, input, sizeof, true, false, NULL
+
+
+------------------------------------- [LIBRARY/INTERNAL COMPILER FUNCTIONS ] ------------------------------------------------		  
+int   strcmp(char *s1, char *s2)
+int   strncmp(char *s1, char *s1, int n)
+char  *strcat(char *dest, char *src)
+int   strlen(char *s)
+char  *index(char *s, int c)
+char  *rindex(char *s, int c)
+char  *strcpy(char *dest, char *src)
+char  *strncpy(char *dest, char *src, size_t n)
+char  *strstr(char *haystack, char *needle)
+char  *strcasestr(char *haystack, char *needle)
+char  *memcpy(char *dest, char *src, int n)
+int   memcmp(char *s1, char *s2, int n)
+char  *memmove(char *dest, char *src, int n)
+char  *malloc(int size)
+void  free(char *ptr)
+void  exit(int status)
+char  *readline (char *prompt);
+void  realloc(char *ptr, int size);
+int   openfile(char *filename, char *mode)
+int   readfile(int fd, char *buf, int count)
+int   writefile(int fd, char *buf, int count)
+int   closefile(int fd)
+void  sys_error(char *s)
+char  *alloca(int size)
+void  cleanup_alloca()
+float pow(float x, float y)
+float sqrt(float x)	
+float sin(float x)
+float cos(float x)
+float tan(float x)
+float log(float x)
+float log2(float x)
+float log10(float x)
+
+-----------------------------------------------------------------------------------------------------------------------------
+
+SOME NOTES: 
+
+The language doesn't have a type with the name 'void'. In SPLANG the open '(' and close ')' parenthesis for statements can be ommitted. ie.
+
+"if(a == b)" can also be written as "if a == b"
+"for(;;) "   can also be written as "for ;; "
+and on ...  
+
+Pointers, array, structures are also supported. Typecasting and pointer arithmetic is not supported. When declaring structures
+the 'struct' keywords shouldn't be added. ie. "mystruct var;" is correct but "struct mystruct var;" is not.
+
+Return types are specified after an arrow placed after the close parenthesis ')' of a function definition. ie.
+
+def myfunc() -> float_t 
+{
+	return 1.2;
+} 
+
+The return type can be either be float_t, int_t, char_t, bool_t or ptr_t. 
+
+In the assembly code generation, an underscore ('_') is prefixed to every user defined function. This is a simple way to
+prevent a function name from colliding with some functions used in the assembly code generated. For eg: When you create a function called 'scanf' it makes it '_scanf' in the assembly code. This is to prevent errors because  scanf (the C standard library function) is used by the SPLANG's 'input' keyword's generated code. Also library/internal language functions eg: exit(), realine() etc can't begin with an underscore because if there is a user defined version of a function, an '_' is prefixed to its name. Eg: user defined exit is named _exit. In this case the if the library function has a leading underscore, an error would occur during assembling becuase both library and user defined functions have the name, _exit where one is a label and one is an extern. ie. 
+
+extern _exit
+
+_exit:
+	code goes here
+
+The kind of code above will cause errors in assembling
+

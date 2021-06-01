@@ -1,0 +1,10 @@
+char msg[] = "hello, world\n";
+def main(int argc, char *argv[])
+{
+	echo("argc => ", argc, "\n");
+	for(int i = 0; i < argc; i=i+1)
+		echo("argv[",i, "] => ", argv[i], "\n");
+
+	echo(msg);
+
+}

@@ -1,0 +1,17 @@
+def neg(float val) -> float_t
+{
+	return -val;
+}
+
+def main()
+{
+	float val;
+	echo("Enter number: ");
+	input(float_t, &val);
+    
+    echo("neg = ", neg(val), "\n");
+	echo("sin = ", sin(val), "\n");
+	echo("cos = ", cos(val), "\n");
+	echo("tan = ", tan(val), "\n");
+	
+}
