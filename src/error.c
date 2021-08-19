@@ -47,8 +47,6 @@ const char *error_msgs[] = {
 	[EXPECTED_DO_STMT_LBRACE]       "expected \'{\' to begin previous do stmt",
 	[UNCLOSED_DO_STMT]	            "expected \'}\' at the end of previous do stmt",
 	[EXPECTED_A_WHILE_STMT]         "expected a while statement at the end of the previous do statement",
-	[FLOATING_MODULO_ARITH]         "modulo arithmetic in expressions with floating point numbers not allowed",
-	[FLOATING_BITWISE_ARITH]        "bitwise operation in expression with floating point numbers not allowed", 
 	[EXPECTED_CALL_LPAREN]          "expected \'(\' for function call",
 	[EXPECTED_CALL_RPAREN]          "expected \')\' to end function call",
     [UNKNOWN_INPUT_TYPE]            "input expects \'char\' , \'int\', \'float\' and \'string\' as first argument",

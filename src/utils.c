@@ -290,7 +290,7 @@ void create_data_section()
                 else if(gvar->type == CHAR)
                     emitcode("%s: db \'%c\'", gvar->name, gvar->defn.variable.value.character);
                 else if(gvar->type == FLOAT)
-                    emitcode("%s: dq %f", gvar->name, gvar->defn.variable.value.real);
+                    emitcode("%s: dd %f", gvar->name, gvar->defn.variable.value.real);
                 else if(gvar->type == BOOL)
                     emitcode("%s: db %d", gvar->name, gvar->defn.variable.value.boolean);
                 else 
@@ -335,8 +335,6 @@ void create_bss_section()
             {
                 if(gvar->type == STRUCT)
                     emitcode("%s: resb %d", gvar->name, gvar->defn.structure.defn_ptr->size+4); // +4byte
-                else if(gvar->type == FLOAT)
-                    emitcode("%s: resq 1", gvar->name);
                 else if(gvar->status.is_ptr_count)
                     emitcode("%s: resd 1", gvar->name);
                 else if(gvar->type == CHAR || gvar->type == BOOL)

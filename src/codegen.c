@@ -14,11 +14,12 @@ void push(int value)
         d_regs->cgen_stack.size += 1024;
         if(realloc(d_regs->cgen_stack.data, d_regs->cgen_stack.size) == NULL)
         {
-            fprintf(stderr, "realloc() failed: error in stack.push() in codegen code\n");
+            fprintf(stderr, "realloc() failed: error in stack.push() during code generation\n");
             exit(-1);   
         }
-
     }
+    if(d_regs->cgen_stack.top < 0)
+        d_regs->cgen_stack.top = 0;
     d_regs->cgen_stack.data[d_regs->cgen_stack.top++] = value;
 }
 
@@ -78,14 +79,10 @@ void emit_cond_push_eax()
     
 }
 
-void emit_push_const(unsigned int value)
+void emit_push_const(unsigned int value, int type)
 {
     emitcode("push 0x%x", value); 
-
-    if(d_regs->in_fpu_mode)
-        d_regs->cgen_stack.push(FLOAT_TYPE);
-    else
-        d_regs->cgen_stack.push(INT_TYPE);
+    d_regs->cgen_stack.push(type);
 }
 
 void emit_add()
@@ -296,29 +293,68 @@ void emit_mod()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_MODULO_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop ebx");
+            emitcode("pop eax");
+            emitcode("cdq");
+            emitcode("idiv ebx");
+            emitcode("mov eax, edx");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop ebx");
-        emitcode("pop eax");
+        emitcode("xchg eax, ebx");
         emitcode("cdq");
         emitcode("idiv ebx");
         emitcode("mov eax, edx");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop ebx");
-    emitcode("xchg eax, ebx");
-    emitcode("cdq");
-    emitcode("idiv ebx");
-    emitcode("mov eax, edx");
-    d_regs->cgen_stack.pop();
+    else
+    {
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop ebx");
+            emitcode("pop eax");
+            emitcode("cdq");
+            emitcode("idiv ebx");
+            emitcode("mov eax, edx");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop ebx");
+        emitcode("xchg eax, ebx");
+        emitcode("cdq");
+        emitcode("idiv ebx");
+        emitcode("mov eax, edx");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 void emit_neg()
@@ -397,18 +433,38 @@ void emit_flip()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-    
-    if(d_regs->eax.busy)
-    {
+        if(d_regs->st0.busy)
+        {
+            emitcode("fistp dword [esp-4]");
+            emitcode("mov eax, dword [esp-4]");
+            emitcode("xor eax, 0xffffffff");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild qword [esp-4]");
+            return;
+        }
+
+        int type = d_regs->cgen_stack.pop();
+        if(type == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
+        emitcode("pop eax");
         emitcode("xor eax, 0xffffffff");
-        return;
+        emitcode("push eax");
+        d_regs->cgen_stack.push(INT_TYPE);
     }
-    emitcode("pop eax");
-    emitcode("xor eax, 0xffffffff");
-    emitcode("push eax");
+    else
+    {
+        if(d_regs->eax.busy)
+        {
+            emitcode("xor eax, 0xffffffff");
+            return;
+        }
+        emitcode("pop eax");
+        emitcode("xor eax, 0xffffffff");
+        emitcode("push eax");
+    }
 }
 
 
@@ -416,72 +472,174 @@ void emit_bit_xor()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("xor eax, edx");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop edx");
-        emitcode("pop eax");
         emitcode("xor eax, edx");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop edx");
-    emitcode("xor eax, edx");
-    d_regs->cgen_stack.pop();
+    else
+    {
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("xor eax, edx");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop edx");
+        emitcode("xor eax, edx");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 void emit_bit_and()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("and eax, edx");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop edx");
-        emitcode("pop eax");
         emitcode("and eax, edx");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop edx");
-    emitcode("and eax, edx");
-    d_regs->cgen_stack.pop();
+    else
+    {
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("and eax, edx");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop edx");
+        emitcode("and eax, edx");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 void emit_bit_or()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("or eax, edx");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop edx");
-        emitcode("pop eax");
         emitcode("or eax, edx");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop edx");
-    emitcode("or eax, edx");
-    d_regs->cgen_stack.pop();
+    else
+    {
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop edx");
+            emitcode("pop eax");
+            emitcode("or eax, edx");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop edx");
+        emitcode("or eax, edx");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 
@@ -489,48 +647,122 @@ void emit_bit_lshift()
 {
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop ecx");
+            emitcode("pop eax");
+            emitcode("shl eax, cl");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop ecx");
-        emitcode("pop eax");
+        emitcode("xchg eax, ecx");
         emitcode("shl eax, cl");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop ecx");
-    emitcode("shl eax, cl");
-    d_regs->cgen_stack.pop();
+    else
+    {
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop ecx");
+            emitcode("pop eax");
+            emitcode("shl eax, cl");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop ecx");
+        emitcode("xchg eax, ecx");
+        emitcode("shl eax, cl");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 void emit_bit_rshift()
 {
+   
     if(d_regs->in_fpu_mode)
     {
-        error(FLOATING_BITWISE_ARITH);
-        return;
-    }
-
-    if(!d_regs->eax.busy)
-    {
-        d_regs->eax.busy = 1;
+        if(!d_regs->st0.busy)
+        {
+            d_regs->eax.busy = 0;
+            d_regs->st0.busy = 1;
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp]");
+                emitcode("fistp dword [esp]");
+            }
+            if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+            {
+                emitcode("fld dword [esp+4]");
+                emitcode("fistp dword [esp+4]");
+            }
+            emitcode("pop ecx");
+            emitcode("pop eax");
+            emitcode("shr eax, cl");
+            emitcode("mov [esp-4], eax");
+            emitcode("fild dword [esp-4]");
+            return;
+        }
+       
+        emitcode("fistp dword [esp-4]");
+        emitcode("mov eax, dword [esp-4]");
+        if(d_regs->cgen_stack.pop() == FLOAT_TYPE)
+        {
+            emitcode("fld dword [esp]");
+            emitcode("fistp dword [esp]");
+        }
         emitcode("pop ecx");
-        emitcode("pop eax");
+        emitcode("xchg eax, ecx");
         emitcode("shr eax, cl");
+        emitcode("mov [esp-4], eax");
+        emitcode("fild dword [esp-4]");
         
-        d_regs->cgen_stack.pop();
-        d_regs->cgen_stack.pop();
-        return;
     }
-    emitcode("pop ecx");
-    emitcode("shr eax, cl");
-    d_regs->cgen_stack.pop();
+    else
+    {
+
+        if(!d_regs->eax.busy)
+        {
+            d_regs->eax.busy = 1;
+            emitcode("pop ecx");
+            emitcode("pop eax");
+            emitcode("shr eax, cl");
+        
+            d_regs->cgen_stack.pop();
+            d_regs->cgen_stack.pop();
+            return;
+        }
+        emitcode("pop ecx");
+        emitcode("xchg eax, ecx");
+        emitcode("shr eax, cl");
+        d_regs->cgen_stack.pop();
+    }
 }
 
 
@@ -1089,8 +1321,6 @@ void emit_assign_to_variable(struct symbol *sym, int scope)
 }
 
 
-
-
 void emit_assign_rodata_string(struct symbol *sym, unsigned int seg_offset, int scope)
 {
     emitcode("lea eax, [char+%d]", seg_offset);
@@ -1368,7 +1598,6 @@ void emit_push_addrof_array_element(struct symbol *sym, int scope)
     emitcode("push eax");
     d_regs->cgen_stack.push(INT_TYPE);
 }
-
 
 
 void emit_adjust_variable_array(struct symbol *sym, int scope)

@@ -26,9 +26,6 @@ void parse_declare()
         struct symbol *local;
         char type_id = curr_token.id;
 
-        if(type_id == FLOAT)
-            d_regs->in_fpu_mode = 1;
-
         do
         {
             get_token();
@@ -478,11 +475,10 @@ static void parse_assign()
 
     }while(curr_token.id == COMMA && !IN_VAR_DECL);  
     return;
-    
+
     end:
         parse_logical();
         emit_cond_pop_eax();
-
         // neccessay because of pushing constants in the parse_atom()
         if(d_regs->in_fpu_mode)
             print_type = PRINT_FLOAT;
@@ -493,7 +489,7 @@ static void parse_assign()
 
 static void parse_logical()
 {
-    parse_equality();
+    parse_bitwise();
     int operator = curr_token.id;
 
     while(operator == LAND || operator == LOR)
@@ -502,7 +498,7 @@ static void parse_logical()
             error(INVALID_EXPRESSION);
 
         get_token();
-        parse_equality();
+        parse_bitwise();
         switch(operator)
         {
             case LAND:
@@ -518,6 +514,38 @@ static void parse_logical()
     }
 }
 
+static void parse_bitwise()
+{ 
+    parse_equality(); 
+    int operator = curr_token.id;
+
+    while(operator == XOR || operator == AND || operator == OR || operator == LSHIFT || operator == RSHIFT)
+    {
+        if(! valid_operator(operator))
+            error(INVALID_EXPRESSION);
+
+        get_token();
+        parse_equality();
+        switch(operator)
+        {
+            case XOR:
+                emit_bit_xor();
+                break;
+            case AND:
+                emit_bit_and();
+                break;
+            case OR:
+                emit_bit_or();
+                break;
+            case LSHIFT:
+                emit_bit_lshift();
+                break;
+            case RSHIFT:
+                emit_bit_rshift();
+        }       
+        operator = curr_token.id;
+    }
+}
 
 
 static void parse_equality()
@@ -603,7 +631,7 @@ static void parse_term()
 
 static void parse_factor()
 {
-    parse_bitwise();
+    parse_unary();
     int operator = curr_token.id;
 
     while(operator == STAR || operator == SLASH || operator == MODULO)
@@ -612,7 +640,7 @@ static void parse_factor()
             error(INVALID_EXPRESSION);
 
         get_token();
-        parse_bitwise();
+        parse_unary();
         switch(operator)
         {
             case STAR:
@@ -624,40 +652,6 @@ static void parse_factor()
             case MODULO:
                 emit_mod();
         }
-        operator = curr_token.id;
-    }
-}
-
-
-static void parse_bitwise()
-{ 
-    parse_unary(); 
-    int operator = curr_token.id;
-
-    while(operator == XOR || operator == AND || operator == OR || operator == LSHIFT || operator == RSHIFT)
-    {
-        if(! valid_operator(operator))
-            error(INVALID_EXPRESSION);
-
-        get_token();
-        parse_unary();
-        switch(operator)
-        {
-            case XOR:
-                emit_bit_xor();
-                break;
-            case AND:
-                emit_bit_and();
-                break;
-            case OR:
-                emit_bit_or();
-                break;
-            case LSHIFT:
-                emit_bit_lshift();
-                break;
-            case RSHIFT:
-                emit_bit_rshift();
-        }       
         operator = curr_token.id;
     }
 }
@@ -797,6 +791,9 @@ static void parse_atom()
 {
     if(curr_token.id == LPAREN)
     {
+        // Storing 'd_regs->in_fpu_mode' prevents excessive dependence on the FPU
+        int mode = d_regs->in_fpu_mode;  
+        d_regs->in_fpu_mode = 0;
         emit_cond_push_eax();
         get_token();
         parse_declare();
@@ -804,6 +801,8 @@ static void parse_atom()
             error(EXPECTED_RIGHT_PAREN);
         get_token();
         emit_cond_push_eax();
+        if(mode)
+            d_regs->in_fpu_mode = mode;
     }
     else if(curr_token.id == FUNCALL)
     {
@@ -1025,11 +1024,7 @@ static void parse_atom()
     {
         int value = curr_token.lexeme[0];
         emit_cond_push_eax();
-        if(d_regs->in_fpu_mode)
-            emit_push_const(IEEE_754_to_float_convert((float)(char)value));
-        else
-            emit_push_const((char)value);
-
+        emit_push_const((char)value, INT_TYPE);
         get_token();
         print_type = PRINT_CHAR;
     }
@@ -1038,40 +1033,28 @@ static void parse_atom()
         d_regs->in_fpu_mode = 1;
         float value = atof(curr_token.lexeme);
         emit_cond_push_eax();
-        emit_push_const(IEEE_754_to_float_convert((float)value));
+        emit_push_const(IEEE_754_to_float_convert((float)value), FLOAT_TYPE);
         get_token();
     }
     else if(curr_token.id == LT_INTEGER)
     {
         unsigned int value = (unsigned int)atof(curr_token.lexeme);   // Note: atoi() does not work with hexadecimals but atof() does
         emit_cond_push_eax();
-        if(d_regs->in_fpu_mode)
-            emit_push_const(IEEE_754_to_float_convert((float)value)); 
-        else
-            emit_push_const(value);
-
+        emit_push_const(value, INT_TYPE);
         get_token();   
     }
     else if(curr_token.id == TRUE)
     {
         int value = 1;
         emit_cond_push_eax();
-        if(d_regs->in_fpu_mode)
-            emit_push_const(IEEE_754_to_float_convert((float)value));
-        else
-            emit_push_const(value);
-
+        emit_push_const(value, INT_TYPE);
         get_token();
     }
     else if(curr_token.id == FALSE || curr_token.id == NUL)
     {
         int value = 0;
         emit_cond_push_eax();
-        if(d_regs->in_fpu_mode)
-            emit_push_const(IEEE_754_to_float_convert((float)value));
-        else
-            emit_push_const(value);
-
+        emit_push_const(value, INT_TYPE);
         get_token();
     }
     else if(curr_token.id == SIZEOF)
@@ -1280,10 +1263,7 @@ static void parse_atom()
         }
 
         end:
-            if(d_regs->in_fpu_mode)
-                emit_push_const(IEEE_754_to_float_convert((float)size));
-            else
-                emit_push_const(size);
+            emit_push_const(size, INT_TYPE);
             get_token();  
             if(has_paren && curr_token.id != RPAREN)
                 error(EXPECTED_RIGHT_PAREN);
@@ -1313,7 +1293,6 @@ void cgen_expr()
     pdref_symbol = paren_pdref_symbol = NULL;
     max_dref_count = access_index = gdref_count = reset_dref_paren = 0;
 
-  
     d_regs->in_fpu_mode = 0;
     d_regs->eax.busy = 0, d_regs->st0.busy = 0;
     d_regs->eax.vartype = d_regs->st0.vartype = 0;

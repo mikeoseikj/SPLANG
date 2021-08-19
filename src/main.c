@@ -9,7 +9,7 @@
 
 int main(int argc, char *argv[])
 {
-	int do_assemble = 1, do_optimize = 1;	//true
+	int do_assemble = 1, do_optimize = 1;	
 	char *binary_file = NULL, *source_file = NULL;
 
 	for(int i = 1; i < argc; i++)

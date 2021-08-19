@@ -7,7 +7,7 @@
 
 static float parse_logical()
 {
-    float result = parse_equality();
+    float result = parse_bitwise();
     int operator = curr_token.id;
 
     while(operator == LAND || operator == LOR)
@@ -16,7 +16,7 @@ static float parse_logical()
             error(INVALID_EXPRESSION);
     
         get_token();
-        float temp = parse_equality();
+        float temp = parse_bitwise();
         switch(operator)
         {
             case LAND:
@@ -32,6 +32,40 @@ static float parse_logical()
     }
     return result;
 }
+
+
+static float parse_bitwise()
+{ 
+    float result = parse_equality(); 
+    int operator = curr_token.id;
+
+    while(operator == XOR || operator == AND || operator == OR)
+    {
+        if(! valid_operator(operator))
+            error(INVALID_EXPRESSION);
+  
+
+        get_token();
+        float temp = parse_equality();
+        switch(operator)
+        {
+            case XOR:
+                result = (int)result ^ (int)temp;
+                break;
+            case AND:
+                result = (int)result & (int)temp;
+                break;
+            case OR:
+                result = (int)result | (int)temp;
+        }
+       
+        operator = curr_token.id;
+        
+    }
+    return result;
+}
+
+
 
 static float parse_equality()
 {
@@ -120,7 +154,7 @@ static float parse_term()
 
 static float parse_factor()
 {
-    float result = parse_bitwise();
+    float result = parse_unary();
     int operator = curr_token.id;
 
     while(operator == STAR || operator == SLASH || operator == MODULO)
@@ -129,7 +163,7 @@ static float parse_factor()
             error(INVALID_EXPRESSION);
   
         get_token();
-        float temp = parse_bitwise();
+        float temp = parse_unary();
         switch(operator)
         {
             case STAR:
@@ -146,37 +180,6 @@ static float parse_factor()
     return result;
 }
 
-
-static float parse_bitwise()
-{ 
-    float result = parse_unary(); 
-    int operator = curr_token.id;
-
-    while(operator == XOR || operator == AND || operator == OR)
-    {
-        if(! valid_operator(operator))
-            error(INVALID_EXPRESSION);
-  
-
-        get_token();
-        float temp = parse_unary();
-        switch(operator)
-        {
-            case XOR:
-                result = (int)result ^ (int)temp;
-                break;
-            case AND:
-                result = (int)result & (int)temp;
-                break;
-            case OR:
-                result = (int)result | (int)temp;
-        }
-       
-        operator = curr_token.id;
-        
-    }
-    return result;
-}
 
 
 static float parse_unary()

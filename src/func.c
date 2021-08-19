@@ -212,12 +212,14 @@ void cgen_func_call(struct token func_token)
     size = ncommas * 4;
     memz = nparams * 4;		// used to adjust esp after function calls
 
-    // Note: Functions accept args in the reverse order but I pushed them in the forwared order and 
-    // reversed them on the stack on subsequent pushes(as I push). This method I used is unnecessary,
-    // complex and inefficient because I could've used a recursive function to push the args in the
-    // reverse order which will produce short, simple and efficient but i just wanted to try this method and experiment/play with it
-    // The reversing is done with the 'emit_add_esp()' and 'emit_sub_esp()' functions
-   
+    /*
+       Note: Functions accept args in the reverse order but i pushed them in the forwared order and 
+       reversed them on the stack on subsequent pushes(as i push). This method i used is unnecessary,
+       complex and inefficient because I could've used a recursive function to push the args in the
+       reverse order which will produce short, simple and efficient but i just wanted to try this method and experiment/play with it
+       The reversing is done with the 'emit_add_esp()' and 'emit_sub_esp()' functions
+    */
+    
     get_token();
     if(nparams == 0)
     	goto end;

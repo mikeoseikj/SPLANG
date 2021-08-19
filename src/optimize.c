@@ -36,6 +36,11 @@ int fixed_expr_const_fold1(char *subject)
 	regex_match(ptr, "0x[[:xdigit:]]+\n", pmatch);
 	strncpy(num_str2, ptr+pmatch[0].rm_so, pmatch[0].rm_eo-pmatch[0].rm_so);
 
+    /*
+       looking at the pattern, the values of num1 should be that of num2 and vice versa. This wont cause a problem because all the operators are commutative 
+       except -, / and % which are swapped in the assembly code but in this optimization, the way they are obtained have already done the swapping in the correct
+	   order and for that matter, we don't need to do it.
+	*/
 	unsigned int num1 = (unsigned int)atof(num_str1), num2 = (unsigned int)atof(num_str2);
 	unsigned int value;
 
@@ -142,8 +147,8 @@ int floating_expr_const_fold1(char *subject)
 {
 	char match_pattern[] = "\tpush 0x[[:xdigit:]]+\n"
 					       "\tpush 0x[[:xdigit:]]+\n"
-				 	       "\tfld dword \\[esp\\]\n"
-					       "\tfld dword \\[esp\\+4\\]\n"
+				 	       "\t(fld|fild) dword \\[esp\\]\n"
+					       "\t(fld|fild) dword \\[esp\\+4\\]\n"
 					       "\tadd esp, 8\n"
 					       "(\tfxch\n|)"
 					       "\t(faddp|fsubp|fmulp|fdivp) st1\n";
@@ -160,19 +165,47 @@ int floating_expr_const_fold1(char *subject)
 	ptr += pmatch[0].rm_eo;
 	regex_match(ptr, "0x[[:xdigit:]]+\n", pmatch);
 	strncpy(num_str2, ptr+pmatch[0].rm_so, pmatch[0].rm_eo-pmatch[0].rm_so);
+    
+    /*
+       looking at the pattern, the value of num1 should be that of num2 and vice versa. This wont cause a problem because all the operators are commutative 
+       except -, / and % which are swapped in the assembly code but in this optimization, the way they are obtained have already done the swapping in the correct
+	   order and for that matter, we don't need to do it.
+	*/
 
 	unsigned int num1 = (unsigned int)atof(num_str1), num2 = (unsigned int)atof(num_str2);
-	unsigned int value;
-
+	float value, a = (float)num1, b = (float)num2;
 	regmatch_t m[1];
+
+	char ptn1[] =  "\tfld dword \\[esp\\]\n"
+				   "\tfld dword \\[esp\\+4\\]\n";
+
+	char ptn2[] =  "\tfild dword \\[esp\\]\n"
+				   "\tfld dword \\[esp\\+4\\]\n";
+
+	char ptn3[] =  "\tfld dword \\[esp\\]\n"
+				   "\tfild dword \\[esp\\+4\\]\n";
+	if(regex_match(ptr, ptn1, m))
+	{
+		a = IEEE_754_to_int_convert(num1);
+		b = IEEE_754_to_int_convert(num2);
+	}
+	else if(regex_match(ptr, ptn2, m))
+	{
+		a = IEEE_754_to_int_convert(num1); // [esp+4] = top one
+	}
+	else if(regex_match(ptr, ptn3, m))
+	{
+		b = IEEE_754_to_int_convert(num2);	// [esp] = down one
+	}
+	
 	if(regex_match(ptr, "faddp", m))
-		value = IEEE_754_to_int_convert(num1) + IEEE_754_to_int_convert(num2);
+		value = a + b;
 	else if(regex_match(ptr, "fsubp", m))
-		value = IEEE_754_to_int_convert(num1) - IEEE_754_to_int_convert(num2);
+		value = a - b;
 	else if(regex_match(ptr, "fmulp", m))
-		value = IEEE_754_to_int_convert(num1) * IEEE_754_to_int_convert(num2);
+		value = a * b;
 	else 
-		value = IEEE_754_to_int_convert(num1) / IEEE_754_to_int_convert(num2);
+		value = a / b;
 
 	free(substr);
 	char rep_str[50];
@@ -190,7 +223,7 @@ int floating_expr_const_fold2(char *subject)
 	char match_pattern[] = "\tsub esp, 4\n"
 						   "\tfstp dword \\[esp\\]\n"
 					   	   "\tpush 0x[[:xdigit:]]+\n"
-				 	       "\tfld dword \\[esp\\]\n"
+				 	       "\t(fld|fild) dword \\[esp\\]\n"
 					       "\tfld dword \\[esp\\+4\\]\n"
 					       "\tadd esp, 8\n"
 					       "(\tfxch\n|)"
@@ -205,9 +238,11 @@ int floating_expr_const_fold2(char *subject)
 	regex_match(substr, "0x[[:xdigit:]]+\n", pmatch);
 	strncpy(num_str, substr+pmatch[0].rm_so, pmatch[0].rm_eo-pmatch[0].rm_so);
 
+    regmatch_t m[1];
 	unsigned int num = (unsigned int)atof(num_str);
-
-	regmatch_t m[1];
+	if(regex_match(substr, "fild", m))	// to float if value pushed to stack was an integer - make code simple
+		num = IEEE_754_to_float_convert((float)num);
+    
 	char *instr;
 	if(regex_match(substr, "faddp", m))
 		instr = "faddp";

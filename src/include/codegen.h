@@ -37,7 +37,7 @@ void init_cgen_regs();
 
 void emit_cond_pop_eax();
 void emit_cond_push_eax();
-void emit_push_const(unsigned int value);
+void emit_push_const(unsigned int value, int type);
 void emit_add();
 void emit_sub();
 void emit_mul();

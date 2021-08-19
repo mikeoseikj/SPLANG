@@ -1,0 +1,7 @@
+def main()
+{
+    float a = 3.4^7.35;	//floating point numbers are treated as integers in bitwise operations
+    int b = 3^7;
+	echo("[3.4 xor 7.35] = ", a, "\n");
+	echo("[3 xor 7] = ", b, "\n");
+}

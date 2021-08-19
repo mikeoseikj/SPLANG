@@ -46,21 +46,19 @@
 #define  EXPECTED_DO_STMT_LBRACE     40  
 #define	 UNCLOSED_DO_STMT	         41
 #define  EXPECTED_A_WHILE_STMT       42
-#define  FLOATING_MODULO_ARITH       43
-#define  FLOATING_BITWISE_ARITH      44
-#define  EXPECTED_CALL_LPAREN        45
-#define  EXPECTED_CALL_RPAREN        46
-#define  UNKNOWN_INPUT_TYPE          47
-#define  UNKNOWN_FUNC_CALL           48
-#define  EXPECTED_A_COMMA            49
-#define  NOT_IN_LOOP                 50
-#define  NOT_A_POINTER               51
-#define  EXCESS_POINTER_DEREFS       52
-#define  EXPECTED_LPAREN             53
-#define  EXPECTED_RPAREN             54
-#define  ASSIGNING_TO_ARRAY          55
-#define  UNKNOWN_RETTYPE             56
-#define  TOKEN_TOO_LONG              57
+#define  EXPECTED_CALL_LPAREN        43
+#define  EXPECTED_CALL_RPAREN        44
+#define  UNKNOWN_INPUT_TYPE          45
+#define  UNKNOWN_FUNC_CALL           46
+#define  EXPECTED_A_COMMA            47
+#define  NOT_IN_LOOP                 48
+#define  NOT_A_POINTER               49
+#define  EXCESS_POINTER_DEREFS       50
+#define  EXPECTED_LPAREN             51
+#define  EXPECTED_RPAREN             52
+#define  ASSIGNING_TO_ARRAY          53
+#define  UNKNOWN_RETTYPE             54
+#define  TOKEN_TOO_LONG              55
 
 void error(int error_code);
 

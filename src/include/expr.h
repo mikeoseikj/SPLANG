@@ -68,11 +68,11 @@
 
 static void parse_assign();
 static void parse_logical();
+static void parse_bitwise();
 static void parse_equality();
 static void parse_compare();
 static void parse_term();
 static void parse_factor();
-static void parse_bitwise();
 static void parse_unary();
 static void parse_atom();
 
