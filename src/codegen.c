@@ -12,7 +12,7 @@ void push(int value)
     if(d_regs->cgen_stack.top == d_regs->cgen_stack.size)
     {
         d_regs->cgen_stack.size += 1024;
-        if(realloc(d_regs->cgen_stack.data, d_regs->cgen_stack.size) == NULL)
+        if((d_regs->cgen_stack.data = realloc(d_regs->cgen_stack.data, d_regs->cgen_stack.size)) == NULL)
         {
             fprintf(stderr, "realloc() failed: error in stack.push() during code generation\n");
             exit(-1);   
