@@ -22,7 +22,7 @@ Both compilation and the use of the SPLANG compiler requires linux
 
 Others:  mv, rm
 
-Note: The compilation script uses the -m32 flag compile the SPLANG compiler library, lib.c. So some libraries has to be installed when you are on a 64bit system.
+Note: The compilation script uses the -m32 flag compile the SPLANG compiler library, lib.c and to executed compiled ELF32 binaries. So some libraries has to be installed when you are on a 64bit system (sudo apt install gcc-multilib). Also, 32bit readline library has to be installed (sudo apt install lib32readline-dev).  
 
 =>> change directory to the 'SPLANG/src' folder
 =>> Enter './compile' to compile the code
